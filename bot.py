@@ -1,10 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
-import time
 import telegram
 import os
+import time
 
-# Environment variables (set in Railway)
+# Environment variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
@@ -15,52 +15,46 @@ headers = {
 }
 
 def scrape_iherb():
-    try:
-        bot.send_message(chat_id=CHANNEL_ID, text="👀 Bot started scraping iHerb...")
-        
-        url = "https://il.iherb.com/search?kw=probiotics"
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.text, "html.parser")
-        items = soup.select("div.product-card")
+    bot.send_message(chat_id=CHANNEL_ID, text="👀 Bot started scraping iHerb...")
 
-        bot.send_message(chat_id=CHANNEL_ID, text=f"🔍 Found {len(items)} items.")
+    url = "https://il.iherb.com/search?kw=probiotics"
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "html.parser")
 
-        found_count = 0
+    items = soup.select("div.product-cell-container")
+    bot.send_message(chat_id=CHANNEL_ID, text=f"🔍 Found {len(items)} items.")
 
-        for item in items:
-            title_tag = item.select_one("a.link")
-            price_tag = item.select_one("div.price")
-            if not title_tag or not price_tag:
-                continue
+    count = 0
+    for item in items:
+        title_tag = item.select_one("a.product-title")
+        price_tag = item.select_one("div.price")
 
-            title = title_tag.get_text(strip=True)
-            link = "https://il.iherb.com" + title_tag.get("href")
-            price = price_tag.get_text(strip=True)
+        if not title_tag or not price_tag:
+            continue
 
-            # Visit product page to check GMP and origin
-            product_page = requests.get(link, headers=headers)
-            product_soup = BeautifulSoup(product_page.text, "html.parser")
-            overview_div = product_soup.find("div", {"id": "product-overview"})
-            text = overview_div.get_text().lower() if overview_div else ""
+        title = title_tag.get_text(strip=True)
+        link = "https://il.iherb.com" + title_tag.get("href")
+        price = price_tag.get_text(strip=True)
 
-            # For debug, show all products with "gmp" even if made in China
-            if "gmp" in text:
-                found_count += 1
-                message = f"*שם מוצר:* {title}\n*מחיר:* {price}\n[לינק למוצר]({link})"
-                bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode=telegram.ParseMode.MARKDOWN)
-                time.sleep(2)
+        # Send raw product name for debugging
+        bot.send_message(chat_id=CHANNEL_ID, text=f"🧪 Found product: {title}")
 
-                if found_count == 5:
-                    break
+        # Check for GMP and not made in China
+        product_page = requests.get(link, headers=headers)
+        product_soup = BeautifulSoup(product_page.text, "html.parser")
+        overview_div = product_soup.find("div", {"id": "product-overview"})
+        text = overview_div.get_text().lower() if overview_div else ""
 
-        if found_count == 0:
-            bot.send_message(chat_id=CHANNEL_ID, text="⚠️ No GMP products found.")
-        else:
-            bot.send_message(chat_id=CHANNEL_ID, text=f"✅ Posted {found_count} products.")
+        if "gmp" in text and "made in china" not in text:
+            message = f"*שם מוצר:* {title}\n*מחיר:* {price}\n[לינק למוצר]({link})"
+            bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode=telegram.ParseMode.MARKDOWN)
+            count += 1
+            time.sleep(2)
 
-    except Exception as e:
-        bot.send_message(chat_id=CHANNEL_ID, text=f"❌ Error: {str(e)}")
+    if count == 0:
+        bot.send_message(chat_id=CHANNEL_ID, text="⚠️ No GMP products found.")
+    else:
+        bot.send_message(chat_id=CHANNEL_ID, text=f"✅ Found {count} GMP product(s).")
 
-# Call the function on deploy
-if __name__ == "__main__":
-    scrape_iherb()
+# Trigger scraping directly
+scrape_iherb()
