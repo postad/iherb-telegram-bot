@@ -44,3 +44,7 @@ def scrape_iherb():
 
         if gmp_found >= 5:
             break
+            
+        if __name__ == "__main__":
+    scrape_iherb()
+
