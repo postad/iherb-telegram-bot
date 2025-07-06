@@ -41,4 +41,4 @@ def scrape_iherb():
             time.sleep(2)
 
 if __name__ == "__main__":
-    bot.send_message(chat_id=CHANNEL_ID, text="🔔 Bot test message from Railway.")
+    scrape_iherb()
