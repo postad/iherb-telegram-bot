@@ -1,59 +1,43 @@
 import requests
-from bs4 import BeautifulSoup
 import telegram
 import os
 
-# Environment variables (from Railway)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
+RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 
 bot = telegram.Bot(token=BOT_TOKEN)
 
-headers = {
-    "User-Agent": "Mozilla/5.0"
-}
+def fetch_probiotics():
+    url = "https://iherb-product-data-api.p.rapidapi.com/api/IHerb/GetProductByBrandName"
+    headers = {
+        "content-type": "application/json",
+        "X-RapidAPI-Key": RAPIDAPI_KEY,
+        "X-RapidAPI-Host": "iherb-product-data-api.p.rapidapi.com"
+    }
+    payload = {
+        "brandName": "probiotic",
+        "pageNumber": 1
+    }
 
-def scrape_iherb():
-    bot.send_message(chat_id=CHANNEL_ID, text="👀 Bot started scraping iHerb...")
+    response = requests.post(url, json=payload, headers=headers)
+    data = response.json()
 
-    url = "https://il.iherb.com/search?kw=probiotics"
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
+    count = 0
+    for item in data.get("data", []):
+        try:
+            title = item["productName"]
+            price = float(item["salePrice"].replace("$", ""))
+            link = item["productUrl"]
 
-    # Debug preview of fetched HTML (first 4000 chars to avoid Telegram limit)
-    bot.send_message(chat_id=CHANNEL_ID, text=soup.prettify()[:4000])
-
-    items = soup.select("div.js-product-list div.product-inner")
-    bot.send_message(chat_id=CHANNEL_ID, text=f"🔍 Found {len(items)} items.")
-
-    gmp_count = 0
-
-    for item in items[:5]:  # Limit to first 5 items for testing
-        title_tag = item.select_one("a.product-title")
-        price_tag = item.select_one("div.price-regular") or item.select_one("div.price")
-
-        if not title_tag or not price_tag:
+            if price < 15:
+                msg = f"*שם מוצר:* {title}\n*מחיר:* ${price}\n[לינק למוצר]({link})"
+                bot.send_message(chat_id=CHANNEL_ID, text=msg, parse_mode=telegram.ParseMode.MARKDOWN)
+                count += 1
+            if count >= 5:
+                break
+        except Exception:
             continue
 
-        title = title_tag.get_text(strip=True)
-        link = "https://il.iherb.com" + title_tag.get("href")
-        price = price_tag.get_text(strip=True)
-
-        # Visit product page
-        product_page = requests.get(link, headers=headers)
-        product_soup = BeautifulSoup(product_page.text, "html.parser")
-        overview_div = product_soup.find("div", {"id": "product-overview"})
-        text = overview_div.get_text().lower() if overview_div else ""
-
-        if "gmp" in text and "made in china" not in text:
-            gmp_count += 1
-            message = f"*שם מוצר:* {title}\n*מחיר:* {price}\n[🔗 לינק למוצר]({link})"
-            bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode=telegram.ParseMode.MARKDOWN)
-
-    if gmp_count == 0:
-        bot.send_message(chat_id=CHANNEL_ID, text="⚠️ No GMP products found.")
-    else:
-        bot.send_message(chat_id=CHANNEL_ID, text=f"✅ Found {gmp_count} GMP products.")
-
-# Run immediately
-scrape_iherb()
+if __name__ == "__main__":
+    fetch_probiotics()
