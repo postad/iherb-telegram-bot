@@ -9,14 +9,14 @@ RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 bot = telegram.Bot(token=BOT_TOKEN)
 
 def fetch_probiotics():
-    url = "https://iherb-product-data-api.p.rapidapi.com/api/IHerb/GetProductByBrandName"
+    url = "https://iherb-product-data-api.p.rapidapi.com/api/IHerb/GetProductByKeyword"
     headers = {
         "content-type": "application/json",
         "X-RapidAPI-Key": RAPIDAPI_KEY,
         "X-RapidAPI-Host": "iherb-product-data-api.p.rapidapi.com"
     }
     payload = {
-        "brandName": "probiotic",
+        "keyword": "probiotic",
         "pageNumber": 1
     }
 
@@ -31,7 +31,7 @@ def fetch_probiotics():
         return
 
     count = 0
-    bot.send_message(chat_id=CHANNEL_ID, text="🔍 מתחיל לבדוק מוצרים עד $15...")
+    bot.send_message(chat_id=CHANNEL_ID, text="🔍 בודק פרוביוטיקה מתחת ל־$15...")
 
     for item in data.get("data", []):
         try:
