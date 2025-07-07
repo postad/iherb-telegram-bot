@@ -34,32 +34,32 @@ def send_telegram_message(message: str):
 def fetch_now_foods_products():
     """
     Fetches the first 20 products from the 'NOW Foods' brand using the
-    RapidAPI iHerb 'Get All Products By Brand Name' endpoint and sends them
+    RapidAPI iHerb 'GET /brands/{brandName}/products' endpoint and sends them
     to a Telegram channel.
     """
     # --- API Endpoint and Headers ---
-    # Corrected URL for 'Get All Products By Brand Name'
-    url = "https://iherb-product-data-api.p.rapidapi.com/api/IHerb/GetAllProductsByBrandName"
+    # Corrected URL for 'GET /brands/{brandName}/products'
+    # The brand name is now part of the URL path.
+    brand_name = "NOW Foods"
+    url = f"https://iherb-product-data-api.p.rapidapi.com/api/IHerb/brands/{brand_name}/products"
     headers = {
-        "content-type": "application/json",
         "X-RapidAPI-Key": RAPIDAPI_KEY,
         "X-RapidAPI-Host": "iherb-product-data-api.p.rapidapi.com"
     }
 
-    # --- API Payload ---
-    # Payload to search for 'NOW Foods' and request 20 items per page.
-    payload = {
-        "brandName": "NOW Foods",
-        "pageNumber": 1,
-        "pageSize": 20 # Request 20 items per page
+    # --- API Query Parameters ---
+    # Pagination parameters for a GET request are typically in 'params'
+    params = {
+        "page": 1,        # Corresponds to pageNumber
+        "pageSize": 20    # Corresponds to pageSize
     }
 
-    send_telegram_message("🔍 בודק 20 מוצרים ראשונים של NOW Foods...")
+    send_telegram_message(f"🔍 בודק 20 מוצרים ראשונים של {brand_name}...")
 
-    # --- Make API Request ---
+    # --- Make API Request (now a GET request) ---
     try:
-        # Added a timeout to prevent indefinite waiting
-        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        # Changed to requests.get and passed params instead of json=payload
+        response = requests.get(url, headers=headers, params=params, timeout=15)
         response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
 
     except requests.exceptions.HTTPError as errh:
@@ -102,25 +102,30 @@ def fetch_now_foods_products():
 
     # --- Process Products ---
     count = 0
-    products_found = data.get("data", [])
+    # The API documentation (Source 1.1) suggests the product list might be under a 'products' key,
+    # not 'data'. Let's adjust to check both, with 'products' as primary.
+    products_found = data.get("products", data.get("data", []))
 
     if not products_found:
-        send_telegram_message("ℹ️ לא נמצאו מוצרים של NOW Foods כרגע.")
+        send_telegram_message(f"ℹ️ לא נמצאו מוצרים של {brand_name} כרגע.")
         return
 
     for item in products_found:
         try:
-            title = item.get("productName", "שם לא ידוע")
-            price = item.get("salePrice")
-            link = item.get("productUrl", "#")
+            title = item.get("title", "שם לא ידוע") # Documentation shows 'title' not 'productName'
+            price = item.get("price") # Documentation shows 'price' not 'salePrice'
+            link = item.get("link", "#") # Documentation shows 'link' not 'productUrl'
 
             # Attempt to clean and convert price if it exists
-            if price and isinstance(price, str):
-                try:
-                    price_float = float(price.replace("$", ""))
-                    price_display = f"${price_float:.2f}" # Format to 2 decimal places
-                except ValueError:
-                    price_display = price # Keep as string if conversion fails
+            if price is not None: # Price could be float or string from API
+                if isinstance(price, str):
+                    try:
+                        price_float = float(price.replace("$", ""))
+                        price_display = f"${price_float:.2f}" # Format to 2 decimal places
+                    except ValueError:
+                        price_display = price # Keep as string if conversion fails
+                else: # Assume it's already a number (int/float)
+                    price_display = f"${price:.2f}"
             else:
                 price_display = "מחיר לא זמין" # Or handle as appropriate
 
@@ -140,9 +145,9 @@ def fetch_now_foods_products():
             continue
 
     if count == 0:
-        send_telegram_message("ℹ️ לא נמצאו מוצרים מתאימים של NOW Foods כרגע.")
+        send_telegram_message(f"ℹ️ לא נמצאו מוצרים מתאימים של {brand_name} כרגע.")
     else:
-        send_telegram_message(f"✅ נמצאו ופורסמו {count} מוצרים של NOW Foods.")
+        send_telegram_message(f"✅ נמצאו ופורסמו {count} מוצרים של {brand_name}.")
 
 # --- Script Entry Point ---
 if __name__ == "__main__":
