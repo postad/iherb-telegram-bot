@@ -33,14 +33,14 @@ def send_telegram_message(message: str):
 
 def fetch_now_foods_products():
     """
-    Fetches the first 20 products from the 'NOW Foods' brand using the
+    Fetches the first 20 products from the specified brand using the
     RapidAPI iHerb 'GET /brands/{brandName}/products' endpoint and sends them
     to a Telegram channel.
     """
     # --- API Endpoint and Headers ---
     # Corrected URL for 'GET /brands/{brandName}/products'
     # The brand name is now part of the URL path.
-    brand_name = "NOW Foods"
+    brand_name = "100-pure" # Changed brand name to "100-pure"
     url = f"https://iherb-product-data-api.p.rapidapi.com/api/IHerb/brands/{brand_name}/products"
     headers = {
         "X-RapidAPI-Key": RAPIDAPI_KEY,
