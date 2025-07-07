@@ -21,9 +21,18 @@ def fetch_probiotics():
     }
 
     response = requests.post(url, json=payload, headers=headers)
-    data = response.json()
+    print("Status Code:", response.status_code)
+    print("Response JSON:", response.text)
+
+    try:
+        data = response.json()
+    except Exception as e:
+        bot.send_message(chat_id=CHANNEL_ID, text=f"❌ שגיאה בפענוח JSON: {str(e)}")
+        return
 
     count = 0
+    bot.send_message(chat_id=CHANNEL_ID, text="🔍 מתחיל לבדוק מוצרים עד $15...")
+
     for item in data.get("data", []):
         try:
             title = item["productName"]
@@ -36,8 +45,12 @@ def fetch_probiotics():
                 count += 1
             if count >= 5:
                 break
-        except Exception:
+        except Exception as e:
+            print("Error parsing item:", str(e))
             continue
+
+    if count == 0:
+        bot.send_message(chat_id=CHANNEL_ID, text="ℹ️ לא נמצאו מוצרים מתאימים כרגע.")
 
 if __name__ == "__main__":
     fetch_probiotics()
