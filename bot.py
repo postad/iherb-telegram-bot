@@ -51,10 +51,14 @@ def fetch_products_by_category(category):
                 link = item["link"]
                 rating = item["ratingValue"]
 
-                msg = f"*{title}*
-מחיר: {price} ⭐️ דירוג: {rating}
-[לינק למוצר]({link})"
-                bot.send_message(chat_id=CHANNEL_ID, text=msg, parse_mode=telegram.ParseMode.MARKDOWN)
+                msg = f"""
+⭐️ *{title}*
+💲 מחיר: {price} | ⭐️ דירוג: {rating}/5
+
+🔗 [מעבר למוצר]({link})
+"""
+                button = telegram.InlineKeyboardMarkup([[telegram.InlineKeyboardButton("🔎 לצפייה באתר", url=link)]])
+                bot.send_message(chat_id=CHANNEL_ID, text=msg.strip(), parse_mode=telegram.ParseMode.MARKDOWN, reply_markup=button)
                 count += 1
                 if count >= 10:
                     return
