@@ -14,9 +14,7 @@ WELCOME_IMG_URL = "https://cdn.prod.website-files.com/68529250c93c3df9b3d2a728/6
 BACK_TO_CHANNEL_LINK = "https://t.me/PostAd_list"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # שלח תמונה כהודעה הראשונה
     await context.bot.send_photo(chat_id=update.effective_chat.id, photo=WELCOME_IMG_URL)
-    # הודעת פתיחה
     await update.message.reply_text(
         "תודה שהתעניינת בפוסט-אד – פלטפורמת הפרסום המובילה בטלגרם לתוצאות מבוססות ביצועים.\n\n"
         "אנא שתף/י מידע קצר:\n"
@@ -50,7 +48,6 @@ async def has_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     has_channel = "כן" if query.data == "yes" else "לא"
     context.user_data["has_channel"] = has_channel
 
-    # שליחת הליד לערוץ
     lead_text = (
         "📥 ליד חדש מבוט PostAd:\n"
         f"שם החברה: {context.user_data['company']}\n"
@@ -61,7 +58,6 @@ async def has_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await context.bot.send_message(chat_id=ADMIN_CHANNEL, text=lead_text)
 
-    # תודה למשתמש וכפתור חזרה לערוץ
     await query.edit_message_text(
         "✅ תודה על שיתוף הפרטים! צוות השיווק שלנו יחזור אליך בקרוב.\n\n"
         "לחזרה אל ערוץ הפרסום:",
@@ -77,7 +73,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
-    # לבדוק שהטוקן לא ריק (לניפוי שגיאות)
+    # שורת בדיקה – מה הקוד רואה כטוקן
+    print("TOKEN:", repr(token))
     if not token:
         print("שגיאה: לא הוגדר טוקן בוט. ודא שהגדרת TELEGRAM_BOT_TOKEN במשתני הסביבה!")
         exit(1)
