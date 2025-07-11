@@ -1,72 +1,95 @@
 import os
-import telegram
-import requests
+from telegram import Update, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    ConversationHandler, filters, ContextTypes, CallbackQueryHandler
+)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+# ערכי מצב לשיחה
+(COMPANY, EMAIL, PHONE, HAS_CHANNEL) = range(4)
 
-bot = telegram.Bot(token=BOT_TOKEN)
+# הגדרות
+ADMIN_CHANNEL = "@PostAd_list"
+WELCOME_IMG_URL = "https://cdn.prod.website-files.com/68529250c93c3df9b3d2a728/685f20f981c6304043571f33_logo-svg.svg"
+BACK_TO_CHANNEL_LINK = "https://t.me/PostAd_list"
 
-# קטגוריה -> רשימת מותגים מועדפים
-CATEGORY_BRANDS = {
-    "ויטמין C": ["Now Foods", "Doctor's Best", "Solgar", "California Gold Nutrition"],
-    "פרוביוטיקה": ["California Gold Nutrition", "Renew Life", "Garden of Life"]
-}
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # שלח תמונה כהודעה הראשונה
+    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=WELCOME_IMG_URL)
+    # הודעת פתיחה
+    await update.message.reply_text(
+        "תודה שהתעניינת בפוסט-אד – פלטפורמת הפרסום המובילה בטלגרם לתוצאות מבוססות ביצועים.\n\n"
+        "אנא שתף/י מידע קצר:\n"
+        "1. שם החברה"
+    )
+    return COMPANY
 
-def fetch_products_by_category(category):
-    brands = CATEGORY_BRANDS.get(category, [])
-    if not brands:
-        bot.send_message(chat_id=CHANNEL_ID, text=f"❌ לא נמצאו מותגים מתאימים לקטגוריה '{category}'")
-        return
+async def company(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["company"] = update.message.text
+    await update.message.reply_text("2. אימייל")
+    return EMAIL
 
-    bot.send_message(chat_id=CHANNEL_ID, text=f"🔍 מחפש מוצרים פופולריים מתוך הקטגוריה: {category}...")
-    count = 0
+async def email(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["email"] = update.message.text
+    await update.message.reply_text("3. מספר טלפון")
+    return PHONE
 
-    for brand in brands:
-        url = f"https://iherb-product-data-api.p.rapidapi.com/brands/{brand}/products"
-        headers = {
-            "X-RapidAPI-Key": RAPIDAPI_KEY,
-            "X-RapidAPI-Host": "iherb-product-data-api.p.rapidapi.com"
-        }
-        params = {
-            "page": 1,
-            "hasStock": True,
-            "minRating": 4.5
-        }
+async def phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["phone"] = update.message.text
+    keyboard = [[InlineKeyboardButton("כן", callback_data='yes'), InlineKeyboardButton("לא", callback_data='no')]]
+    await update.message.reply_text(
+        "4. האם יש לחברה ערוץ טלגרם?", reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return HAS_CHANNEL
 
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code != 200:
-            continue
+async def has_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    has_channel = "כן" if query.data == "yes" else "לא"
+    context.user_data["has_channel"] = has_channel
 
-        try:
-            data = response.json()
-        except:
-            continue
+    # שליחת הליד לערוץ
+    lead_text = (
+        "📥 ליד חדש מבוט PostAd:\n"
+        f"שם החברה: {context.user_data['company']}\n"
+        f"אימייל: {context.user_data['email']}\n"
+        f"טלפון: {context.user_data['phone']}\n"
+        f"האם יש ערוץ טלגרם: {context.user_data['has_channel']}\n"
+        f"טלגרם: @{query.from_user.username if query.from_user.username else '---'}"
+    )
+    await context.bot.send_message(chat_id=ADMIN_CHANNEL, text=lead_text)
 
-        for item in data.get("products", []):
-            try:
-                title = item["title"]
-                price = item["formattedPrice"]
-                link = item["link"]
-                rating = item["ratingValue"]
+    # תודה למשתמש וכפתור חזרה לערוץ
+    await query.edit_message_text(
+        "✅ תודה על שיתוף הפרטים! צוות השיווק שלנו יחזור אליך בקרוב.\n\n"
+        "לחזרה אל ערוץ הפרסום:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("חזור אל ערוץ הפרסום", url=BACK_TO_CHANNEL_LINK)]
+        ])
+    )
+    return ConversationHandler.END
 
-                msg = f"""
-⭐️ *{title}*
-💲 מחיר: {price} | ⭐️ דירוג: {rating}/5
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("בוט הופסק. יום נעים!")
+    return ConversationHandler.END
 
-🔗 [מעבר למוצר]({link})
-"""
-                button = telegram.InlineKeyboardMarkup([[telegram.InlineKeyboardButton("🔎 לצפייה באתר", url=link)]])
-                bot.send_message(chat_id=CHANNEL_ID, text=msg.strip(), parse_mode=telegram.ParseMode.MARKDOWN, reply_markup=button)
-                count += 1
-                if count >= 10:
-                    return
-            except:
-                continue
+def main():
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    app = ApplicationBuilder().token(token).build()
 
-    if count == 0:
-        bot.send_message(chat_id=CHANNEL_ID, text="ℹ️ לא נמצאו מוצרים פופולריים לקטגוריה זו.")
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('start', start)],
+        states={
+            COMPANY: [MessageHandler(filters.TEXT & ~filters.COMMAND, company)],
+            EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, email)],
+            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone)],
+            HAS_CHANNEL: [CallbackQueryHandler(has_channel)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)]
+    )
+    app.add_handler(conv_handler)
+
+    app.run_polling()
 
 if __name__ == "__main__":
-    fetch_products_by_category("ויטמין C")
+    main()
