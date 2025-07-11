@@ -5,13 +5,11 @@ from telegram.ext import (
     ConversationHandler, filters, ContextTypes, CallbackQueryHandler
 )
 
-# ערכי מצב לשיחה
 (COMPANY, EMAIL, PHONE, HAS_CHANNEL) = range(4)
 
-# הגדרות
-ADMIN_CHANNEL = "@PostAd_list"
+ADMIN_CHANNEL = "@rakbriut"  # הערוץ החדש
 WELCOME_IMG_URL = "https://cdn.prod.website-files.com/68529250c93c3df9b3d2a728/685f20f981c6304043571f33_logo-svg.svg"
-BACK_TO_CHANNEL_LINK = "https://t.me/PostAd_list"
+BACK_TO_CHANNEL_LINK = "https://t.me/rakbriut"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_photo(chat_id=update.effective_chat.id, photo=WELCOME_IMG_URL)
@@ -73,8 +71,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
-    # שורת בדיקה – מה הקוד רואה כטוקן
-    print("TOKEN:", repr(token))
+    print("TOKEN:", repr(token))  # לשורת דיבאג בלוג
     if not token:
         print("שגיאה: לא הוגדר טוקן בוט. ודא שהגדרת TELEGRAM_BOT_TOKEN במשתני הסביבה!")
         exit(1)
