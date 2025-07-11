@@ -1,5 +1,5 @@
 import os
-from telegram import Update, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ConversationHandler, filters, ContextTypes, CallbackQueryHandler
@@ -36,7 +36,9 @@ async def email(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["phone"] = update.message.text
-    keyboard = [[InlineKeyboardButton("כן", callback_data='yes'), InlineKeyboardButton("לא", callback_data='no')]]
+    keyboard = [
+        [InlineKeyboardButton("כן", callback_data='yes'), InlineKeyboardButton("לא", callback_data='no')]
+    ]
     await update.message.reply_text(
         "4. האם יש לחברה ערוץ טלגרם?", reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -75,6 +77,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
+    # לבדוק שהטוקן לא ריק (לניפוי שגיאות)
+    if not token:
+        print("שגיאה: לא הוגדר טוקן בוט. ודא שהגדרת TELEGRAM_BOT_TOKEN במשתני הסביבה!")
+        exit(1)
+
     app = ApplicationBuilder().token(token).build()
 
     conv_handler = ConversationHandler(
@@ -85,10 +92,11 @@ def main():
             PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone)],
             HAS_CHANNEL: [CallbackQueryHandler(has_channel)],
         },
-        fallbacks=[CommandHandler('cancel', cancel)]
+        fallbacks=[CommandHandler('cancel', cancel)],
     )
     app.add_handler(conv_handler)
 
+    print("הבוט עלה בהצלחה ומוכן לקבל לידים!")
     app.run_polling()
 
 if __name__ == "__main__":
